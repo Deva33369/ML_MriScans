@@ -134,5 +134,11 @@ test_loss, test_acc = model.evaluate(test_dataset, verbose=2)
 plt.legend(loc='lower right')
 plt.savefig('evaluation.png')
 
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+tflite_model = converter.convert()
+with open('cnn_model_quantized.tflite', 'wb') as f:
+    f.write(tflite_model)
 
+print("Quantized TFLite model saved as cnn_model_quantized.tflite")
 

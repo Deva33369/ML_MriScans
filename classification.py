@@ -15,6 +15,13 @@ from tensorflow.keras import layers
 from tensorflow.keras import models as kerasmodel
 
 
+
+def tflite_preprocess(img):
+    img = img.resize((224, 224))
+    img = img.convert("RGB")
+    arr = np.array(img).astype("float32")  # or "uint8" if quantized to int8
+    arr = np.expand_dims(arr, axis=0)
+    return arr
 # --- Configuration ---
 NUM_CLASSES = 4
 IMAGE_SIZE = (224, 224)
@@ -46,35 +53,21 @@ else:
 model_ResNet.eval()
 
 # --- Keras CNN Model Setup ---
+# Load the TFLite model
+interpreter = tf.lite.Interpreter(model_path=os.path.join(os.path.dirname(__file__), 'CNN', 'cnn_model_quantized.tflite'))
+interpreter.allocate_tensors()
 
-def build_cnn_model():
-    return tf.keras.Sequential([
-        layers.Input(shape=(224, 224, 3)),
-        layers.Conv2D(32, (3, 3), activation='relu'),
-        layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
-        layers.Conv2D(64, (3, 3), activation='relu'),
-        layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
-        layers.Conv2D(224, (3, 3), activation='relu'),
-        layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
-        layers.Flatten(),
-        layers.Dense(224, activation='relu'),
-        layers.Dropout(0.5),
-        layers.Dense(4, activation='softmax')
-    ])
+# Get input and output details
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
-keras_CNN = build_cnn_model()
-keras_CNN.load_weights(os.path.join(os.path.dirname(__file__), 'CNN', 'best_weights.weights.h5'))
-
-
-def keras_preprocess(img):
-    img = img.resize(IMAGE_SIZE)
+def tflite_preprocess(img):
+    img = img.resize((224, 224))
     img = img.convert("RGB")
-    arr = np.array(img).astype("float32")
+    arr = np.array(img).astype("float32")  # or "uint8" if quantized to int8
     arr = np.expand_dims(arr, axis=0)
     return arr
+
 
 # --- Image Transform ---
 transform = transforms.Compose([
@@ -95,10 +88,10 @@ def predict_mri(img, model_choice):
             _, predicted = torch.max(output, 1)
         return LABEL_NAMES[int(predicted.item())]
     elif model_choice == "CNN":
-        if keras_CNN is None:
-            return "No trained Keras CNN model found."
-        arr = keras_preprocess(img)
-        preds = keras_CNN.predict(arr)
+        arr = tflite_preprocess(img)
+        interpreter.set_tensor(input_details[0]['index'], arr)
+        interpreter.invoke()
+        preds = interpreter.get_tensor(output_details[0]['index'])
         class_idx = np.argmax(preds, axis=1)[0]
         return DISPLAY_LABELS[class_idx]
     elif model_choice == "SVM":
