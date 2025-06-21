@@ -15,21 +15,13 @@ from tensorflow.keras import layers
 from tensorflow.keras import models as kerasmodel
 
 
-
-def tflite_preprocess(img):
-    img = img.resize((224, 224))
-    img = img.convert("RGB")
-    arr = np.array(img).astype("float32")  # or "uint8" if quantized to int8
-    arr = np.expand_dims(arr, axis=0)
-    return arr
 # --- Configuration ---
 NUM_CLASSES = 4
 IMAGE_SIZE = (224, 224)
 LABEL_MAP = {'glioma': 0, 'meningioma': 1, 'pituitary': 2, 'notumor': 3}  # glioma, meningioma, pituitary, no tumor
 LABEL_NAMES = ['Glioma', 'Meningioma', 'Pituitary', 'No Tumor']
 
-LABEL_NAMES_CNN = ['glioma', 'meningioma', 'notumor', 'pituitary']        # For CNN
-DISPLAY_LABELS = ['Glioma', 'Meningioma', 'No Tumor', 'Pituitary']
+LABEL_NAMES_CNN = ['Glioma', 'Meningioma', 'No Tumor', 'Pituitary']
 
 with open(os.path.join(os.path.dirname(__file__), 'config.json')) as f:
     config = json.load(f)
@@ -87,13 +79,15 @@ def predict_mri(img, model_choice):
             output = selected_model(image)
             _, predicted = torch.max(output, 1)
         return LABEL_NAMES[int(predicted.item())]
+    
     elif model_choice == "CNN":
         arr = tflite_preprocess(img)
         interpreter.set_tensor(input_details[0]['index'], arr)
         interpreter.invoke()
         preds = interpreter.get_tensor(output_details[0]['index'])
         class_idx = np.argmax(preds, axis=1)[0]
-        return DISPLAY_LABELS[class_idx]
+        return LABEL_NAMES_CNN[class_idx]
+    
     elif model_choice == "SVM":
         return "SVM model not implemented"
     elif model_choice == "ViT":
