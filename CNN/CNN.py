@@ -24,7 +24,7 @@ train_dataset = tf.keras.utils.image_dataset_from_directory(
     dataset_11,
     labels='inferred',
     label_mode='categorical',
-    image_size=(224, 224),     #128 pixel size for greater accuracy
+    image_size=(224, 224),    
     batch_size=32
 )
 
@@ -112,8 +112,7 @@ model.compile(
     metrics=['accuracy']
 )
 
-#checkpoint = tf.keras.callbacks.ModelCheckpoint('best_model.h5', save_best_only=True)
-checkpoint = tf.keras.callbacks.ModelCheckpoint('best_weights.weights.h5', save_best_only=True, save_weights_only=True)
+checkpoint = tf.keras.callbacks.ModelCheckpoint('best_model.h5', save_best_only=True)
 reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3)
 
 # Train the model using dataset directly
