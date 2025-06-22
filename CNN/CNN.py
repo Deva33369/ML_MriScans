@@ -13,6 +13,8 @@ from tensorflow.keras import datasets, layers, models
 import matplotlib.pyplot as plt
 import os
 import json
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
 
 with open(os.path.join(os.path.dirname(__file__), '..', 'config.json')) as f:
     config = json.load(f)
@@ -122,6 +124,9 @@ history = model.fit(
     epochs=50,
     callbacks=[reduce_lr, checkpoint]
 )
+# Print the highest validation accuracy achieved (used for best_model.h5)
+best_val_acc = max(history.history['val_accuracy'])
+print(f"Highest validation accuracy (best_model.h5): {best_val_acc:.4f}")
 
 #evaluate the model
 plt.plot(history.history['accuracy'], label='accuracy')
@@ -141,3 +146,18 @@ with open('cnn_model_quantized.tflite', 'wb') as f:
 
 print("Quantized TFLite model saved as cnn_model_quantized.tflite")
 
+# Evaluate the model and get predictions for the test set
+y_true = []
+y_pred = []
+
+for images, labels in test_dataset:
+    preds = model.predict(images)
+    y_true.extend(tf.argmax(labels, axis=1).numpy())
+    y_pred.extend(tf.argmax(preds, axis=1).numpy())
+
+cm = confusion_matrix(y_true, y_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+disp.plot(cmap='Blues')
+plt.title('Confusion Matrix')
+plt.savefig('confusion_matrix.png')
+plt.show()
