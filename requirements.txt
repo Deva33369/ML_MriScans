@@ -5,5 +5,5 @@ gradio>=3.0.0
 scikit-learn>=1.0.0
 matplotlib>=3.5.0
 tensorflow==2.19.0
-transformers>=4.38.0
-tqdm>=4.65.0
+transformers>=4.39.0
+tqdm>=4.66.0
