@@ -84,7 +84,31 @@ plt.show()
 for images, labels in train_dataset.take(1):
     print(f"Image shape: {images[0].shape}")
 
-#Improve training stability and reduce overfitting:
+#normal model
+model = models.Sequential()
+model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(224, (3, 3), activation='relu'))
+model.add(layers.Flatten())
+model.add(layers.Dense(224, activation='relu'))
+model.add(layers.Dense(4))
+model.summary()
+
+model.compile(optimizer='adam',
+              loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+
+history = model.fit(
+    train_dataset,
+    validation_data=test_dataset,
+    epochs=10
+)
+test_loss, test_acc = model.evaluate(test_dataset, verbose=2)
+print(f"Test Accuracy: {test_acc:.4f}, Test Loss: {test_loss:.4f}")
+
+#Improved model - enhanced training stability and reduce overfitting:
 
 model = tf.keras.Sequential([
     layers.Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),  # <-- changed to 224x224
