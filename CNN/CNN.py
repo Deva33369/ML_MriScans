@@ -117,7 +117,6 @@ model.compile(
 checkpoint = tf.keras.callbacks.ModelCheckpoint('best_model.h5', save_best_only=True)
 reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3)
 
-# Train the model using dataset directly
 history = model.fit(
     train_dataset,
     validation_data=test_dataset,
@@ -128,25 +127,35 @@ history = model.fit(
 best_val_acc = max(history.history['val_accuracy'])
 print(f"Highest validation accuracy (best_model.h5): {best_val_acc:.4f}")
 
-#evaluate the model
-plt.plot(history.history['accuracy'], label='accuracy')
-plt.plot(history.history['val_accuracy'], label = 'val_accuracy')
+# Accuracy plot
+plt.figure(figsize=(12, 5))
+
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy')
 plt.ylim([0.5, 1])
+plt.title('Training and Validation Accuracy')
+plt.legend()
+
+# Loss plot
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Training and Validation Loss')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+plt.savefig("trainingandvalidation.png")
+
 test_loss, test_acc = model.evaluate(test_dataset, verbose=2)
-plt.legend(loc='lower right')
-plt.savefig('evaluation.png')
+print(f"Test Accuracy: {test_acc:.4f}, Test Loss: {test_loss:.4f}")
 
-converter = tf.lite.TFLiteConverter.from_keras_model(model)
-converter.optimizations = [tf.lite.Optimize.DEFAULT]
-tflite_model = converter.convert()
-with open('cnn_model_quantized.tflite', 'wb') as f:
-    f.write(tflite_model)
-
-print("Quantized TFLite model saved as cnn_model_quantized.tflite")
-
-# Evaluate the model and get predictions for the test set
+# confusion matrix
 y_true = []
 y_pred = []
 
@@ -161,3 +170,14 @@ disp.plot(cmap='Blues')
 plt.title('Confusion Matrix')
 plt.savefig('confusion_matrix.png')
 plt.show()
+
+# convert to tflite for deployment
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+tflite_model = converter.convert()
+with open('cnn_model_quantized.tflite', 'wb') as f:
+    f.write(tflite_model)
+
+print("Quantized TFLite model saved as cnn_model_quantized.tflite")
+
+
