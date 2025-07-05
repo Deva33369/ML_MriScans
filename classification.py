@@ -13,12 +13,12 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras import layers
 from tensorflow.keras import models as kerasmodel
-
+from transformers import ViTForImageClassification
 
 # --- Configuration ---
 NUM_CLASSES = 4
 IMAGE_SIZE = (224, 224)
-LABEL_MAP = {'glioma': 0, 'meningioma': 1, 'pituitary': 2, 'notumor': 3}  # glioma, meningioma, pituitary, no tumor
+LABEL_MAP = {'glioma': 0, 'meningioma': 1, 'pituitary': 2, 'notumor': 3}
 LABEL_NAMES = ['Glioma', 'Meningioma', 'Pituitary', 'No Tumor']
 
 LABEL_NAMES_CNN = ['Glioma', 'Meningioma', 'No Tumor', 'Pituitary']
@@ -30,12 +30,28 @@ dataset_11 = config["dataset_11"]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# --- ViT Model Setup ---
+model_ViT = ViTForImageClassification.from_pretrained(
+    "google/vit-base-patch16-224-in21k",
+    num_labels=NUM_CLASSES
+)
+
+vit_model_path = os.path.join(os.path.dirname(__file__), 'ViT', 'results', 'vit_model.pth')
+
+if os.path.exists(vit_model_path):
+    model_ViT.load_state_dict(torch.load(vit_model_path, map_location=device))
+    print(f"Loaded ViT model from {vit_model_path}")
+else:
+    print("No trained ViT model found — please run train_vit.py first.")
+
+model_ViT = model_ViT.to(device)
+model_ViT.eval()
+
 # --- RsnNet Model Setup ---
 model_ResNet = models.resnet18(pretrained=True)
 model_ResNet.fc = nn.Linear(model_ResNet.fc.in_features, NUM_CLASSES)
 model_ResNet = model_ResNet.to(device)
 
-# Load trained model if available
 model_ResNet_path = os.path.join(os.path.dirname(__file__), 'ResNet', 'best_model.pth')
 if os.path.exists(model_ResNet_path):
     model_ResNet.load_state_dict(torch.load(model_ResNet_path, map_location=device))
@@ -45,21 +61,18 @@ else:
 model_ResNet.eval()
 
 # --- Keras CNN Model Setup ---
-# Load the TFLite model
 interpreter = tf.lite.Interpreter(model_path=os.path.join(os.path.dirname(__file__), 'CNN', 'cnn_model_quantized.tflite'))
 interpreter.allocate_tensors()
 
-# Get input and output details
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
 def tflite_preprocess(img):
     img = img.resize((224, 224))
     img = img.convert("RGB")
-    arr = np.array(img).astype("float32")  # or "uint8" if quantized to int8
+    arr = np.array(img).astype("float32")
     arr = np.expand_dims(arr, axis=0)
     return arr
-
 
 # --- Image Transform ---
 transform = transforms.Compose([
@@ -74,12 +87,11 @@ def predict_mri(img, model_choice):
     if model_choice == "ResNet":
         image = img.convert("RGB")
         image = transform(image).unsqueeze(0).to(device)
-        selected_model = model_ResNet
         with torch.no_grad():
-            output = selected_model(image)
+            output = model_ResNet(image)
             _, predicted = torch.max(output, 1)
         return LABEL_NAMES[int(predicted.item())]
-    
+
     elif model_choice == "CNN":
         arr = tflite_preprocess(img)
         interpreter.set_tensor(input_details[0]['index'], arr)
@@ -87,11 +99,20 @@ def predict_mri(img, model_choice):
         preds = interpreter.get_tensor(output_details[0]['index'])
         class_idx = np.argmax(preds, axis=1)[0]
         return LABEL_NAMES_CNN[class_idx]
-    
+
     elif model_choice == "SVM":
         return "SVM model not implemented"
+
     elif model_choice == "ViT":
-        return "ViT model not implemented"
+        img_tensor = img.resize(IMAGE_SIZE).convert("RGB")
+        img_tensor = transforms.ToTensor()(img_tensor).unsqueeze(0).to(device)
+        img_tensor = (img_tensor - 0.5) / 0.5
+
+        with torch.no_grad():
+            output = model_ViT(pixel_values=img_tensor).logits
+            _, predicted = torch.max(output, 1)
+        return LABEL_NAMES[int(predicted.item())]
+
     else:
         return "Unknown model"
 
@@ -113,4 +134,4 @@ iface = gr.Interface(
 )
 
 if __name__ == "__main__":
-    iface.launch() 
+    iface.launch()
