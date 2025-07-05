@@ -11,16 +11,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # ====== Configuration ======
-model_name_suffix = "50epochs"  # Change to 30epochs or 50epochs as needed
+model_name_suffix = "Best Model" 
 
 # ====== Device ======
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"[INFO] Using device: {device}")
 
 # ====== Paths ======
-data_dir = "./dataset_11"
+data_dir = "./test"
 results_dir = "./ViT/results"
-model_path = os.path.join(results_dir, f"vit_model_{model_name_suffix}.pth")
+# model_path = os.path.join(results_dir, f"vit_model_{model_name_suffix}.pth")
+model_path = os.path.join(results_dir, "vit_model_best.pth")
+
 
 # ====== Classes ======
 classes = ['glioma', 'meningioma', 'notumor', 'pituitary']
@@ -35,11 +37,8 @@ transform = transforms.Compose([
 ])
 
 # ====== Dataset ======
-dataset = datasets.ImageFolder(root=data_dir, transform=transform)
-train_size = int(0.8 * len(dataset))
-val_size = len(dataset) - train_size
-_, val_ds = torch.utils.data.random_split(dataset, [train_size, val_size])
-val_loader = DataLoader(val_ds, batch_size=8, shuffle=False)
+test_dataset = datasets.ImageFolder(root="./test", transform=transform)
+test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
 
 # ====== Load Model ======
 model = ViTForImageClassification.from_pretrained(
@@ -54,7 +53,7 @@ model.eval()
 all_preds, all_labels = [], []
 
 with torch.no_grad():
-    for imgs, labels in val_loader:
+    for imgs, labels in test_loader:
         imgs, labels = imgs.to(device), labels.to(device)
         outputs = model(pixel_values=imgs).logits
         preds = torch.argmax(outputs, dim=1)
