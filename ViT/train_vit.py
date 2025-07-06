@@ -23,12 +23,12 @@ def set_seed(seed=42):
 set_seed(42)
 
 # ====== Configuration ======
-num_epochs = 55 
+num_epochs = 56 
 lr = 2e-5
 batch_size = 8
 results_dir = "./ViT/results"
 os.makedirs(results_dir, exist_ok=True)
-model_name_suffix = f"{num_epochs}epochs"
+# model_name_suffix = f"{num_epochs}epochs"
 
 # ====== Device Set-up (to use GPU if Available) ======
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -74,6 +74,7 @@ scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
 patience = 10 # stop if accuracy does not improve for 10 consecutive epochs
 best_val_acc = 0.0
 patience_counter = 0
+actual_epochs_run = 0
 
 # ====== Training Loop ======
 train_losses, val_losses = [], []
@@ -128,6 +129,8 @@ for epoch in range(num_epochs):
 
     print(f"[Epoch {epoch+1}] Train Loss: {avg_train_loss:.4f}, Acc: {train_accuracy:.4f} | "
           f"Val Loss: {avg_val_loss:.4f}, Acc: {val_accuracy:.4f}")
+    
+    actual_epochs_run = epoch + 1
 
     # ====== Check for Best Model ======
     if val_accuracy > best_val_acc:
@@ -145,6 +148,8 @@ for epoch in range(num_epochs):
     # Step LR Scheduler
     scheduler.step()
 
+# ====== Update Suffix Based on Model ======
+model_name_suffix = f"{actual_epochs_run}epochs"
 # ====== Save Final Model (even if not best) ======
 final_model_path = os.path.join(results_dir, f"vit_model_{model_name_suffix}.pth")
 torch.save(model.state_dict(), final_model_path)
